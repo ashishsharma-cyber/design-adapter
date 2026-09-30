@@ -71,7 +71,7 @@
   <div style="background:#fff;border-radius:12px;padding:26px;max-width:460px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3)">
     <div style="font-family:var(--mono);font-size:11px;letter-spacing:.12em;color:var(--ink2);text-transform:uppercase">Engine</div>
     <h3 style="font-size:19px;margin:6px 0 10px;font-weight:600" id="keyTitle">Engine not reachable</h3>
-    <p style="font-size:13px;color:var(--ink2);margin-bottom:14px" id="keyBody">This app talks to a small server function that holds the API key. If you opened the HTML file directly from your computer, that function is not running — deploy the folder (see README) or run <code style="font-family:var(--mono);background:#f2f2ef;padding:1px 5px;border-radius:3px">vercel dev</code> locally.</p>
+    <p style="font-size:13px;color:var(--ink2);margin-bottom:14px" id="keyBody">This app uses a small server function that holds the API key. If you opened the file directly from your computer, that function is not running &mdash; deploy the folder, or run <code style="font-family:var(--mono);background:#f2f2ef;padding:1px 5px;border-radius:3px">vercel dev</code> locally.</p>
     <div style="display:flex;gap:10px">
       <button class="btn primary" id="keyRetry">Check again</button>
       <button class="btn" id="keySkip">Close</button>
@@ -198,9 +198,9 @@ async function checkEngine(){
     if(j.error&&/No key configured/i.test(j.error)){
       engineReady=false;
       $("keyTitle").textContent="Server running, key missing";
-      $("keyBody").innerHTML="Add <code style='font-family:var(--mono);background:#f2f2ef;padding:1px 5px;border-radius:3px'>OPENAI_API_KEY</code> to your hosting environment variables, then redeploy.";
-    } else if(r.status===400||r.ok){engineReady=true;}
-    else {engineReady=false;}
+      $("keyBody").innerHTML="Add <code style='font-family:var(--mono);background:#f2f2ef;padding:1px 5px;border-radius:3px'>OPENAI_API_KEY</code> in Vercel &rarr; Settings &rarr; Environment Variables, then Deployments &rarr; Redeploy.";
+    }else if(r.status===400||r.ok){engineReady=true;}
+    else{engineReady=false;}
   }catch(e){engineReady=false;}
   $("keyBadge").style.display="block";
   $("keyBadge").textContent=engineReady?"engine ready":"engine offline";
@@ -285,206 +285,6 @@ $("cAdd").onclick=()=>{
    and canvas-finish to the exact target pixels afterwards. */
 const OAI_SIZES=[["1024x1024",1],["1536x1024",1.5],["1024x1536",1/1.5]];
 function nearestSize(r){let b=OAI_SIZES[0];for(const s of OAI_SIZES){if(Math.abs(Math.log(s[1]/r))<Math.abs(Math.log(b[1]/r)))b=s;}return b[0];}
-
-function buildPrompt(name,W,H){
-  const rule=BRAND_RULES.find(b=>b.w===W&&b.h===H);
-  const align=$("compAlign").value;
-  const notes=$("layoutNotes").value.trim();
-  const hasEx=exSrcImg&&exOutImg;
-  let p="";
-  if(hasEx){
-    p+="The first image is an original design. The second image shows how a professional designer adapted that same design into a wider format. The third image is a NEW design. ";
-    p+="Study carefully how the designer rearranged things between the first and second images: the column split, where the headline, supporting bullet points, date, button, cutout figure and logos were placed, and how the type was rescaled. ";
-    p+="Now adapt the THIRD image into a "+W+"x"+H+" layout using that same adaptation approach. ";
-  }else{
-    p+="Adapt this finished marketing design into a "+W+"x"+H+" pixel layout for "+name+". ";
-  }
-  p+="This is a LAYOUT ADAPTATION, not a crop or a stretch: rebuild the composition for the new canvas shape. ";
-  p+="Keep every element from the source: all logos, the headline, supporting bullet points, date, call-to-action button, and any person or product cutout. Do not remove elements and do not invent new ones. ";
-  p+="Reproduce all text EXACTLY as written in the source, spelled correctly, re-flowed onto fewer and wider lines, and rescaled proportionally so it reads comfortably at this size. ";
-  p+="Leave generous white space so the layout breathes; nothing cramped, nothing touching the edges. ";
-  p+="Keep the same fonts, colours, background pattern and visual style, and extend the background naturally to fill the canvas. Keep logos crisp, undistorted and in their original colours. ";
-  p+="The composition should be "+align+"-weighted. ";
-  if(rule)p+="Logo rule: the brand logo should be about "+rule.logo+"px wide with a "+rule.gap+"px gap from its corner edges at this canvas size. ";
-  if(notes)p+="Target layout structure: "+notes+" ";
-  return p;
-}
-
-async function callGemini(key,W,H,name){
-  const AR=[["1:1",1],["16:9",16/9],["9:16",9/16],["4:3",4/3],["3:4",3/4],["21:9",21/9],["3:2",1.5],["2:3",2/3],["4:5",.8],["5:4",1.25]];
-  const r=W/H;let ar=AR[0];
-  for(const a of AR)if(Math.abs(Math.log(a[1]/r))<Math.abs(Math.log(ar[1]/r)))ar=a;
-  const toB64=async img=>{const f=await toPngFile(img,"i.png");
-    return await new Promise(ok=>{const rd=new FileReader();rd.onload=()=>ok(rd.result.split(",")[1]);rd.readAsDataURL(f);});};
-  const parts=[];
-  if(exSrcImg&&exOutImg){
-    parts.push({inline_data:{mime_type:"image/png",data:await toB64(exSrcImg)}});
-    parts.push({inline_data:{mime_type:"image/png",data:await toB64(exOutImg)}});
-  }
-  parts.push({inline_data:{mime_type:"image/png",data:await toB64(srcImg)}});
-  parts.push({text:buildPrompt(name,W,H)});
-  const body={contents:[{parts}],generationConfig:{imageConfig:{aspectRatio:ar[0]}}};
-  let res=await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key="+encodeURIComponent(key),
-    {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
-  if(!res.ok){delete body.generationConfig;
-    res=await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key="+encodeURIComponent(key),
-      {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});}
-  if(!res.ok){
-    let m="engine error "+res.status;
-    try{const j=await res.json();if(j.error&&j.error.message)m=j.error.message;}catch(e){}
-    throw new Error(m);
-  }
-  const data=await res.json();
-  const ps=((data.candidates||[])[0]?.content?.parts)||[];
-  const ip=ps.find(x=>x.inline_data||x.inlineData);
-  if(!ip)throw new Error("engine returned no image — try again");
-  const pd=ip.inline_data||ip.inlineData;
-  return await new Promise((ok,no)=>{const im=new Image();im.onload=()=>ok(im);im.onerror=no;
-    im.src="data:"+(pd.mime_type||pd.mimeType||"image/png")+";base64,"+pd.data;});
-}
-
-async function callEngine(key,W,H,name){
-  if(provider(key)==="gemini")return await callGemini(key,W,H,name);
-  const fd=new FormData();
-  fd.append("model","gpt-image-1");
-  if(exSrcImg&&exOutImg){
-    fd.append("image[]",await toPngFile(exSrcImg,"example-original.png"));
-    fd.append("image[]",await toPngFile(exOutImg,"example-adapted.png"));
-  }
-  fd.append("image[]",await toPngFile(srcImg,"source.png"));
-  fd.append("prompt",buildPrompt(name,W,H));
-  fd.append("size",nearestSize(W/H));
-  fd.append("input_fidelity","high");
-  fd.append("quality","high");
-  fd.append("n","1");
-  let res;
-  try{
-    res=await fetch("https://api.openai.com/v1/images/edits",{
-      method:"POST",headers:{Authorization:"Bearer "+key},body:fd});
-  }catch(e){
-    throw new Error("Browsers block direct OpenAI calls (CORS). Use a Google AI key, or run this app behind a proxy.");
-  }
-  if(!res.ok){
-    let m="engine error "+res.status;
-    try{const j=await res.json();if(j.error&&j.error.message)m=j.error.message;}catch(e){}
-    throw new Error(m);
-  }
-  const data=await res.json();
-  const b64=data.data&&data.data[0]&&data.data[0].b64_json;
-  if(!b64)throw new Error("no image returned");
-  return await new Promise((ok,no)=>{
-    const im=new Image();im.onload=()=>ok(im);im.onerror=no;
-    im.src="data:image/png;base64,"+b64;
-  });
-}
-
-/* ---------- render ---------- */
-function coverDraw(ctx,img,x,y,w,h){
-  const s=Math.max(w/img.naturalWidth,h/img.naturalHeight);
-  const dw=img.naturalWidth*s,dh=img.naturalHeight*s;
-  ctx.save();ctx.beginPath();ctx.rect(x,y,w,h);ctx.clip();
-  ctx.drawImage(img,x+(w-dw)/2,y+(h-dh)/2,dw,dh);ctx.restore();
-}
-function finish(img,W,H){
-  const c=document.createElement("canvas");c.width=W;c.height=H;
-  const ctx=c.getContext("2d");ctx.imageSmoothingQuality="high";
-  coverDraw(ctx,img,0,0,W,H);
-  if($("quality").value==="hybrid"&&(logoImg||partnerImg)){
-    const rule=BRAND_RULES.find(b=>b.w===W&&b.h===H);
-    const S=Math.min(W,H)/1080;
-    const gap=rule?rule.gap:Math.max(10,Math.round(50*S));
-    const mc=$("logoCorner").value;
-    if(logoImg){
-      const lw=rule?rule.logo:Math.max(24,Math.round(150*S));
-      const lh=lw*logoImg.naturalHeight/logoImg.naturalWidth;
-      ctx.drawImage(logoImg,mc.includes("left")?gap:W-gap-lw,mc.includes("top")?gap:H-gap-lh,lw,lh);
-    }
-    if(partnerImg){
-      const pw=Math.max(24,Math.round((parseInt($("partnerPx").value)||130)*S));
-      const ph=pw*partnerImg.naturalHeight/partnerImg.naturalWidth;
-      const pc=mc==="top-right"?"top-left":mc==="top-left"?"top-right":mc==="bottom-right"?"bottom-left":"bottom-right";
-      ctx.drawImage(partnerImg,pc.includes("left")?gap:W-gap-pw,pc.includes("top")?gap:H-gap-ph,pw,ph);
-    }
-  }
-  return c;
-}
-function addCard(c,name,w,h,note){
-  const type=$("ftype").value,ext=type==="image/png"?"png":"jpg";
-  const fname=name.toLowerCase().replace(/[^a-z0-9]+/g,"-")+"-"+w+"x"+h+"."+ext;
-  outputs.push({canvas:c,name:fname,type});
-  const card=document.createElement("div");card.className="rcard";
-  const wrap=document.createElement("div");wrap.className="rimg";
-  const pv=document.createElement("canvas");
-  const ps=Math.min(225/w,164/h,1);
-  pv.width=Math.round(w*ps);pv.height=Math.round(h*ps);
-  pv.getContext("2d").drawImage(c,0,0,pv.width,pv.height);
-  wrap.appendChild(pv);
-  const info=document.createElement("div");info.className="rinfo";
-  info.innerHTML="<div><b>"+name+"</b><span>"+w+" × "+h+(note?" · "+note:"")+"</span></div>";
-  const b=document.createElement("button");b.className="btn small";b.textContent="Save";
-  b.onclick=()=>c.toBlob(bl=>{const a=document.createElement("a");a.href=URL.createObjectURL(bl);a.download=fname;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),4000);},type,.93);
-  info.appendChild(b);
-  card.appendChild(wrap);card.appendChild(info);
-  $("results").appendChild(card);
-  $("outHead").style.display="flex";
-  $("actionbar").style.display="flex";
-  $("count").textContent=outputs.length+" version"+(outputs.length>1?"s":"")+" ready";
-}
-
-$("go").onclick=async()=>{
-  const st=$("genStatus");
-  if(!srcImg){alert("Upload the design you want to adapt (Step 2).");return;}
-  if(selected.size===0){alert("Select at least one target size (Step 4).");return;}
-  const needsEngine=[...selected].some(i=>{
-    const [,w,h]=PRESETS[i];
-    return Math.abs(Math.log((w/h)/(srcImg.naturalWidth/srcImg.naturalHeight)))>=0.06;
-  });
-  if(needsEngine&&!engineReady){await checkEngine();if(!engineReady){showKeyPanel();return;}}
-  $("go").disabled=true;outputs=[];$("results").innerHTML="";
-  const list=[...selected].map(i=>PRESETS[i]);
-  let n=0,fails=0;
-  for(const [name,w,h] of list){
-    n++;
-    st.className="";st.textContent="Adapting "+name+" ("+n+"/"+list.length+")… about 20s";
-    const srcR=srcImg.naturalWidth/srcImg.naturalHeight;
-    if(Math.abs(Math.log((w/h)/srcR))<0.06){
-      addCard(finish(srcImg,w,h),name,w,h,"same ratio");continue;
-    }
-    try{
-      const im=await callEngine(w,h,name);
-      addCard(finish(im,w,h),name,w,h,"adapted");
-    }catch(e){
-      fails++;st.className="err";st.textContent="⚠ "+name+": "+e.message;
-      await new Promise(r=>setTimeout(r,1200));
-    }
-  }
-  st.className=fails?"err":"ok";
-  st.textContent=fails?(list.length-fails)+" of "+list.length+" done — retry the failed ones.":"Done — "+list.length+" adapted. Regenerate any that need another attempt.";
-  $("go").disabled=false;
-};
-
-$("keyRetry").onclick=()=>checkEngine();
-$("keySkip").onclick=()=>hideKeyPanel();
-$("keyBadge").onclick=()=>{checkEngine();showKeyPanel();};
-checkEngine();
-
-$("zip").onclick=async()=>{
-  if(!outputs.length)return;
-  $("zip").disabled=true;$("zip").textContent="Packing…";
-  const zip=new JSZip();
-  for(const o of outputs){
-    const b=await new Promise(r=>o.canvas.toBlob(r,o.type,.93));
-    zip.file(o.name,b);
-  }
-  const out=await zip.generateAsync({type:"blob"});
-  const a=document.createElement("a");a.href=URL.createObjectURL(out);a.download="adapted-designs.zip";a.click();
-  setTimeout(()=>URL.revokeObjectURL(a.href),4000);
-  $("zip").disabled=false;$("zip").textContent="Download all as ZIP";
-};
-</script>
-</body>
-</html>const OAI_SIZES=[["1024x1024",1],["1536x1024",1.5],["1024x1536",1/1.5]];
-function nearestSize(r){let b=OAI_SIZES[0];for(const s of OAI_SIZES){if(Math.abs(Math.log(s[1]/r))<Math.abs(Math.log(b[1]/r)))b=s;}return b[0];}
 const AR=[["1:1",1],["16:9",16/9],["9:16",9/16],["4:3",4/3],["3:4",3/4],["21:9",21/9],["3:2",1.5],["2:3",2/3],["4:5",.8],["5:4",1.25]];
 function nearestAR(r){let b=AR[0];for(const a of AR){if(Math.abs(Math.log(a[1]/r))<Math.abs(Math.log(b[1]/r)))b=a;}return b[0];}
 
@@ -524,7 +324,7 @@ async function callEngine(W,H,name){
   try{
     res=await fetch(ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json"},
       body:JSON.stringify({prompt:buildPrompt(name,W,H),images,size:nearestSize(W/H),aspectRatio:nearestAR(W/H)})});
-  }catch(e){throw new Error("Cannot reach the engine server — is the app deployed?");}
+  }catch(e){throw new Error("Cannot reach the engine server - is the app deployed?");}
   const data=await res.json().catch(()=>({}));
   if(!res.ok)throw new Error(data.error||("server error "+res.status));
   if(!data.image)throw new Error("no image returned");
