@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart Design Adapter</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+  :root{
+    --paper:#F7F7F4; --ink:#191A1E; --ink2:#5B5D66; --line:#DDDDD6;
+    --accent:#2447F5; --accent-soft:#E8ECFE; --ok:#0E7A4E; --warn:#B3261E;
+    --mono:"SF Mono",ui-monospace,Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--paper);color:var(--ink);font-family:var(--sans);line-height:1.5;padding:26px 20px 90px;max-width:1100px;margin:0 auto}
+  header{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:8px;border-bottom:2px solid var(--ink);padding-bottom:13px;margin-bottom:8px}
+  h1{font-size:25px;font-weight:600;letter-spacing:-.02em}
+  h1 span{color:var(--accent)}
+  .tag{font-family:var(--mono);font-size:11px;color:var(--ink2);text-transform:uppercase;letter-spacing:.12em}
+  .lead{font-size:13.5px;color:var(--ink2);margin-bottom:20px;max-width:760px}
+  h2{font-size:12.5px;font-family:var(--mono);text-transform:uppercase;letter-spacing:.12em;color:var(--ink2);margin:26px 0 12px;display:flex;align-items:center;gap:10px}
+  h2::after{content:"";flex:1;height:1px;background:var(--line)}
+  .step{font-family:var(--mono);background:var(--ink);color:#fff;border-radius:4px;padding:1px 7px;font-size:11px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(228px,1fr));gap:12px}
+  .card{background:#fff;border:1.5px solid var(--line);border-radius:8px;padding:14px}
+  .card.key{border-color:var(--accent);background:var(--accent-soft)}
+  .card b{font-size:13px;display:block;margin-bottom:5px}
+  .card small{color:var(--ink2);font-size:11.5px;display:block;margin-bottom:8px;line-height:1.45}
+  .up{border:1.5px dashed var(--ink2);border-radius:6px;padding:13px;text-align:center;cursor:pointer;font-size:12.5px;color:var(--ink2);transition:.12s;background:repeating-conic-gradient(#f2f2ef 0 25%,#fff 0 50%) 50%/14px 14px;min-height:56px;display:flex;align-items:center;justify-content:center}
+  .up:hover{border-color:var(--accent);color:var(--accent)}
+  .up img{max-width:100%;max-height:96px;display:block}
+  .up.filled{border-style:solid;border-color:var(--ok);padding:7px}
+  textarea,input[type=text]{width:100%;padding:9px;border:1.5px solid var(--line);border-radius:6px;font-family:var(--sans);font-size:13px;resize:vertical}
+  input.num{width:76px;padding:7px;border:1.5px solid var(--line);border-radius:6px;font-family:var(--mono);font-size:12.5px}
+  label.row{display:flex;align-items:center;gap:8px;font-size:13px;margin-top:8px;flex-wrap:wrap}
+  select{padding:7px;border:1.5px solid var(--line);border-radius:6px;font-family:var(--mono);font-size:12px;background:#fff}
+  .btn{font-family:var(--mono);font-size:12.5px;letter-spacing:.04em;padding:10px 18px;border:1.5px solid var(--ink);background:#fff;color:var(--ink);border-radius:6px;cursor:pointer;transition:.12s}
+  .btn:hover{background:var(--ink);color:#fff}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  .btn.primary:hover{background:#1631b8;border-color:#1631b8}
+  .btn.small{padding:6px 12px;font-size:11.5px}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  #formats{display:grid;grid-template-columns:repeat(auto-fill,minmax(146px,1fr));gap:10px}
+  .fcard{background:#fff;border:1.5px solid var(--line);border-radius:8px;padding:11px;cursor:pointer;transition:.12s;user-select:none}
+  .fcard:hover{border-color:var(--ink2)}
+  .fcard.on{border-color:var(--accent);background:var(--accent-soft)}
+  .frame{margin:0 auto 9px;border:1.5px solid var(--ink2);border-radius:2px;background:#fff}
+  .fcard.on .frame{border-color:var(--accent)}
+  .fname{font-size:12.5px;font-weight:600;text-align:center}
+  .fdim{font-family:var(--mono);font-size:10px;color:var(--ink2);text-align:center;margin-top:2px;line-height:1.35}
+  #custom{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px}
+  #results{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px}
+  .rcard{background:#fff;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .rimg{background:repeating-conic-gradient(#eee 0 25%,#fff 0 50%) 50%/16px 16px;display:flex;align-items:center;justify-content:center;height:180px;padding:8px}
+  .rimg canvas{max-width:100%;max-height:164px;display:block;box-shadow:0 1px 4px rgba(0,0,0,.15)}
+  .rinfo{padding:10px 12px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .rinfo b{font-size:12.5px;display:block}
+  .rinfo span{font-family:var(--mono);font-size:10.5px;color:var(--ink2)}
+  #actionbar{display:none;position:sticky;bottom:14px;margin-top:24px;background:var(--ink);color:#fff;border-radius:10px;padding:13px 18px;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;box-shadow:0 6px 24px rgba(0,0,0,.18)}
+  #count{font-family:var(--mono);font-size:12.5px}
+  #genStatus{font-family:var(--mono);font-size:12px;color:var(--ink2);min-height:18px;margin-top:10px}
+  #genStatus.err{color:var(--warn)} #genStatus.ok{color:var(--ok)}
+  .hintbar{background:#fff;border-left:3px solid var(--accent);padding:11px 13px;font-size:12.5px;color:var(--ink2);margin-bottom:16px;border-radius:0 6px 6px 0}
+  .hintbar a{color:var(--accent)}
+</style>
+</head>
+<body>
+
+<div id="keyPanel" style="display:none;position:fixed;inset:0;background:rgba(25,26,30,.55);z-index:99;align-items:center;justify-content:center;padding:20px">
+  <div style="background:#fff;border-radius:12px;padding:26px;max-width:460px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+    <div style="font-family:var(--mono);font-size:11px;letter-spacing:.12em;color:var(--ink2);text-transform:uppercase">Engine</div>
+    <h3 style="font-size:19px;margin:6px 0 10px;font-weight:600" id="keyTitle">Engine not reachable</h3>
+    <p style="font-size:13px;color:var(--ink2);margin-bottom:14px" id="keyBody">This app talks to a small server function that holds the API key. If you opened the HTML file directly from your computer, that function is not running — deploy the folder (see README) or run <code style="font-family:var(--mono);background:#f2f2ef;padding:1px 5px;border-radius:3px">vercel dev</code> locally.</p>
+    <div style="display:flex;gap:10px">
+      <button class="btn primary" id="keyRetry">Check again</button>
+      <button class="btn" id="keySkip">Close</button>
+    </div>
+  </div>
+</div>
+
+<div id="keyBadge" style="display:none;position:fixed;bottom:14px;left:14px;z-index:60;font-family:var(--mono);font-size:10.5px;color:var(--ink2);background:#fff;border:1px solid var(--line);border-radius:20px;padding:5px 11px;cursor:pointer;opacity:.6">engine</div>
+
+<header>
+  <h1>Smart Design <span>Adapter</span></h1>
+  <div class="tag">learns from your own adaptations</div>
+</header>
+<p class="lead">Upload a finished design, show it one example of how you adapt (source → your handmade version), and it applies that same thinking to every other size — with your logos overlaid crisp at guideline sizes.</p>
+
+<h2><span class="step">1</span> Adaptation settings</h2>
+<div class="grid">
+  <div class="card">
+    <b>Quality mode</b>
+    <label class="row">
+      <select id="quality">
+        <option value="hybrid" selected>Hybrid — engine layout + crisp logos on top</option>
+        <option value="pure">Engine only</option>
+      </select>
+    </label>
+    <small style="margin-top:8px">Hybrid redraws your uploaded logos over the result at exact guideline size and gap, so logos never come out soft or distorted.</small>
+  </div>
+  <div class="card">
+    <b>Composition</b>
+    <label class="row">Align
+      <select id="compAlign">
+        <option value="left">Left</option>
+        <option value="center" selected>Center</option>
+        <option value="right">Right</option>
+      </select>
+    </label>
+    <label class="row">Main logo corner
+      <select id="logoCorner">
+        <option value="top-right" selected>Top right</option>
+        <option value="top-left">Top left</option>
+        <option value="bottom-right">Bottom right</option>
+        <option value="bottom-left">Bottom left</option>
+      </select>
+    </label>
+  </div>
+</div>
+
+<h2><span class="step">2</span> Design to adapt <span style="color:var(--warn);font-family:var(--sans);text-transform:none;letter-spacing:0">— required</span></h2>
+<div class="grid">
+  <div class="card">
+    <b>Your finished design</b>
+    <small>The creative being adapted — e.g. your 1080×1350 post.</small>
+    <div class="up" id="srcUp">Click to upload<input type="file" id="srcFile" accept="image/*" hidden></div>
+  </div>
+  <div class="card">
+    <b>Main logo — crisp overlay (optional)</b>
+    <small>Transparent PNG. Drawn on top at guideline size: 150px/50px gap (posts), 165px/75px (reels), 50px/20px (emailer).</small>
+    <div class="up" id="logoUp">Click to upload<input type="file" id="logoFile" accept="image/png,image/webp" hidden></div>
+  </div>
+  <div class="card">
+    <b>Partner logo — opposite corner (optional)</b>
+    <small>Transparent PNG, drawn with the same gap.</small>
+    <div class="up" id="partnerUp">Click to upload<input type="file" id="partnerFile" accept="image/png,image/webp" hidden></div>
+    <label class="row">Width <input type="number" class="num" id="partnerPx" value="130"> px <small style="margin:0">(at 1080 wide)</small></label>
+  </div>
+</div>
+
+<h2><span class="step">3</span> Teach it your style — reference pair (strongly recommended)</h2>
+<div class="grid">
+  <div class="card">
+    <b>Example — original</b>
+    <small>A past design of yours, before adapting.</small>
+    <div class="up" id="exSrcUp">Click to upload<input type="file" id="exSrcFile" accept="image/*" hidden></div>
+  </div>
+  <div class="card">
+    <b>Example — your handmade adaptation</b>
+    <small>How you adapted that design yourself. The engine studies this pair and copies your thinking.</small>
+    <div class="up" id="exOutUp">Click to upload<input type="file" id="exOutFile" accept="image/*" hidden></div>
+  </div>
+  <div class="card">
+    <b>Layout notes (optional)</b>
+    <small>Describe the structure you want for wide sizes.</small>
+    <textarea id="layoutNotes" rows="4" placeholder="e.g. Two columns: headline, date and Register Now button on the left; event lockup top-right with bullet card below; person cutout anchored bottom-right at full height; logos in top corners."></textarea>
+  </div>
+</div>
+
+<h2><span class="step">4</span> Target sizes</h2>
+<div id="formats"></div>
+<div id="custom">
+  <span style="font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--ink2)">Custom:</span>
+  <input type="text" id="cName" placeholder="Name" style="width:140px;padding:8px;border:1.5px solid var(--line);border-radius:6px;font-size:13px">
+  <input type="number" class="num" id="cW" placeholder="W">
+  <span style="color:var(--ink2)">×</span>
+  <input type="number" class="num" id="cH" placeholder="H">
+  <button class="btn small" id="cAdd">Add</button>
+</div>
+
+<div style="margin-top:22px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+  <button class="btn primary" id="go">Adapt now</button>
+  <label class="row" style="margin:0">Export
+    <select id="ftype"><option value="image/png">PNG</option><option value="image/jpeg">JPG</option></select>
+  </label>
+</div>
+<div id="genStatus"></div>
+
+<h2 id="outHead" style="display:none"><span class="step">5</span> Adapted versions</h2>
+<div id="results"></div>
+
+<div id="actionbar">
+  <span id="count"></span>
+  <button class="btn primary" id="zip">Download all as ZIP</button>
+</div>
+
+<script>
+/* ---------- ENGINE (key lives on the server) ---------- */
+const ENDPOINT="/api/adapt";
+let engineReady=false;
+function showKeyPanel(){$("keyPanel").style.display="flex";}
+function hideKeyPanel(){$("keyPanel").style.display="none";}
+async function checkEngine(){
+  try{
+    const r=await fetch(ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({})});
+    const j=await r.json().catch(()=>({}));
+    if(j.error&&/No key configured/i.test(j.error)){
+      engineReady=false;
+      $("keyTitle").textContent="Server running, key missing";
+      $("keyBody").innerHTML="Add <code style='font-family:var(--mono);background:#f2f2ef;padding:1px 5px;border-radius:3px'>OPENAI_API_KEY</code> to your hosting environment variables, then redeploy.";
+    } else if(r.status===400||r.ok){engineReady=true;}
+    else {engineReady=false;}
+  }catch(e){engineReady=false;}
+  $("keyBadge").style.display="block";
+  $("keyBadge").textContent=engineReady?"engine ready":"engine offline";
+  $("keyBadge").style.opacity=engineReady?".55":".95";
+  if(!engineReady)showKeyPanel(); else hideKeyPanel();
+  return engineReady;
+}
+
+const PRESETS=[
+  ["Instagram post",1080,1080],["Instagram portrait",1080,1350],["Story / Reels",1080,1920],
+  ["Emailer",600,300],["LinkedIn post",1200,627],["LinkedIn banner",1584,396],
+  ["Facebook post",1200,630],["YouTube thumbnail",1280,720],["Web banner wide",1920,600]
+];
+const BRAND_RULES=[
+  {w:1080,h:1080,logo:150,gap:50},
+  {w:1080,h:1350,logo:150,gap:50},
+  {w:1080,h:1920,logo:165,gap:75},
+  {w:600,h:300,logo:50,gap:20}
+];
+const $=id=>document.getElementById(id);
+let selected=new Set([3]), outputs=[];
+let srcImg=null,srcFileObj=null;
+let logoImg=null,partnerImg=null;
+let exSrcImg=null,exOutImg=null;
+
+/* ---------- uploads ---------- */
+function bindUpload(boxId,fileId,cb){
+  const box=$(boxId),inp=$(fileId);
+  box.onclick=()=>inp.click();
+  inp.onchange=()=>{
+    const f=inp.files[0];if(!f)return;
+    const url=URL.createObjectURL(f);
+    const im=new Image();
+    im.onload=()=>{
+      cb(im,f);
+      box.innerHTML="";box.classList.add("filled");
+      const p=document.createElement("img");p.src=url;box.appendChild(p);box.appendChild(inp);
+    };
+    im.src=url;
+  };
+}
+/* convert any upload to a PNG File the API accepts */
+async function toPngFile(img,name){
+  const c=document.createElement("canvas");
+  const max=1024, s=Math.min(1,max/Math.max(img.naturalWidth,img.naturalHeight));
+  c.width=Math.round(img.naturalWidth*s);c.height=Math.round(img.naturalHeight*s);
+  c.getContext("2d").drawImage(img,0,0,c.width,c.height);
+  const blob=await new Promise(r=>c.toBlob(r,"image/png"));
+  return new File([blob],name,{type:"image/png"});
+}
+bindUpload("srcUp","srcFile",(im,f)=>{srcImg=im;srcFileObj=f;});
+bindUpload("logoUp","logoFile",(im)=>{logoImg=im;});
+bindUpload("partnerUp","partnerFile",(im)=>{partnerImg=im;});
+bindUpload("exSrcUp","exSrcFile",(im,f)=>{exSrcImg=im;});
+bindUpload("exOutUp","exOutFile",(im,f)=>{exOutImg=im;});
+
+/* ---------- formats ---------- */
+function frameStyle(w,h){const max=50,r=w/h;let fw=r>=1?max:max*r,fh=r>=1?max/r:max;return "width:"+Math.round(fw)+"px;height:"+Math.round(fh)+"px";}
+function renderFormats(){
+  $("formats").innerHTML="";
+  PRESETS.forEach((p,i)=>{
+    const [name,w,h]=p;
+    const br=BRAND_RULES.find(b=>b.w===w&&b.h===h);
+    const d=document.createElement("div");
+    d.className="fcard"+(selected.has(i)?" on":"");
+    d.innerHTML='<div class="frame" style="'+frameStyle(w,h)+'"></div><div class="fname">'+name+'</div><div class="fdim">'+w+'×'+h+(br?'<br>logo '+br.logo+' · gap '+br.gap:'')+'</div>';
+    d.onclick=()=>{selected.has(i)?selected.delete(i):selected.add(i);d.classList.toggle("on");};
+    $("formats").appendChild(d);
+  });
+}
+renderFormats();
+$("cAdd").onclick=()=>{
+  const w=parseInt($("cW").value),h=parseInt($("cH").value);
+  if(!w||!h){alert("Enter width and height.");return;}
+  PRESETS.push([$("cName").value.trim()||("Custom "+w+"×"+h),w,h]);
+  selected.add(PRESETS.length-1);renderFormats();
+  $("cW").value="";$("cH").value="";$("cName").value="";
+};
+
+/* ---------- engine ---------- */
+/* OpenAI gpt-image-1 supports these output sizes; we pick the nearest ratio
+   and canvas-finish to the exact target pixels afterwards. */
+const OAI_SIZES=[["1024x1024",1],["1536x1024",1.5],["1024x1536",1/1.5]];
+function nearestSize(r){let b=OAI_SIZES[0];for(const s of OAI_SIZES){if(Math.abs(Math.log(s[1]/r))<Math.abs(Math.log(b[1]/r)))b=s;}return b[0];}
+
+function buildPrompt(name,W,H){
+  const rule=BRAND_RULES.find(b=>b.w===W&&b.h===H);
+  const align=$("compAlign").value;
+  const notes=$("layoutNotes").value.trim();
+  const hasEx=exSrcImg&&exOutImg;
+  let p="";
+  if(hasEx){
+    p+="The first image is an original design. The second image shows how a professional designer adapted that same design into a wider format. The third image is a NEW design. ";
+    p+="Study carefully how the designer rearranged things between the first and second images: the column split, where the headline, supporting bullet points, date, button, cutout figure and logos were placed, and how the type was rescaled. ";
+    p+="Now adapt the THIRD image into a "+W+"x"+H+" layout using that same adaptation approach. ";
+  }else{
+    p+="Adapt this finished marketing design into a "+W+"x"+H+" pixel layout for "+name+". ";
+  }
+  p+="This is a LAYOUT ADAPTATION, not a crop or a stretch: rebuild the composition for the new canvas shape. ";
+  p+="Keep every element from the source: all logos, the headline, supporting bullet points, date, call-to-action button, and any person or product cutout. Do not remove elements and do not invent new ones. ";
+  p+="Reproduce all text EXACTLY as written in the source, spelled correctly, re-flowed onto fewer and wider lines, and rescaled proportionally so it reads comfortably at this size. ";
+  p+="Leave generous white space so the layout breathes; nothing cramped, nothing touching the edges. ";
+  p+="Keep the same fonts, colours, background pattern and visual style, and extend the background naturally to fill the canvas. Keep logos crisp, undistorted and in their original colours. ";
+  p+="The composition should be "+align+"-weighted. ";
+  if(rule)p+="Logo rule: the brand logo should be about "+rule.logo+"px wide with a "+rule.gap+"px gap from its corner edges at this canvas size. ";
+  if(notes)p+="Target layout structure: "+notes+" ";
+  return p;
+}
+
+async function callGemini(key,W,H,name){
+  const AR=[["1:1",1],["16:9",16/9],["9:16",9/16],["4:3",4/3],["3:4",3/4],["21:9",21/9],["3:2",1.5],["2:3",2/3],["4:5",.8],["5:4",1.25]];
+  const r=W/H;let ar=AR[0];
+  for(const a of AR)if(Math.abs(Math.log(a[1]/r))<Math.abs(Math.log(ar[1]/r)))ar=a;
+  const toB64=async img=>{const f=await toPngFile(img,"i.png");
+    return await new Promise(ok=>{const rd=new FileReader();rd.onload=()=>ok(rd.result.split(",")[1]);rd.readAsDataURL(f);});};
+  const parts=[];
+  if(exSrcImg&&exOutImg){
+    parts.push({inline_data:{mime_type:"image/png",data:await toB64(exSrcImg)}});
+    parts.push({inline_data:{mime_type:"image/png",data:await toB64(exOutImg)}});
+  }
+  parts.push({inline_data:{mime_type:"image/png",data:await toB64(srcImg)}});
+  parts.push({text:buildPrompt(name,W,H)});
+  const body={contents:[{parts}],generationConfig:{imageConfig:{aspectRatio:ar[0]}}};
+  let res=await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key="+encodeURIComponent(key),
+    {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+  if(!res.ok){delete body.generationConfig;
+    res=await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key="+encodeURIComponent(key),
+      {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});}
+  if(!res.ok){
+    let m="engine error "+res.status;
+    try{const j=await res.json();if(j.error&&j.error.message)m=j.error.message;}catch(e){}
+    throw new Error(m);
+  }
+  const data=await res.json();
+  const ps=((data.candidates||[])[0]?.content?.parts)||[];
+  const ip=ps.find(x=>x.inline_data||x.inlineData);
+  if(!ip)throw new Error("engine returned no image — try again");
+  const pd=ip.inline_data||ip.inlineData;
+  return await new Promise((ok,no)=>{const im=new Image();im.onload=()=>ok(im);im.onerror=no;
+    im.src="data:"+(pd.mime_type||pd.mimeType||"image/png")+";base64,"+pd.data;});
+}
+
+async function callEngine(key,W,H,name){
+  if(provider(key)==="gemini")return await callGemini(key,W,H,name);
+  const fd=new FormData();
+  fd.append("model","gpt-image-1");
+  if(exSrcImg&&exOutImg){
+    fd.append("image[]",await toPngFile(exSrcImg,"example-original.png"));
+    fd.append("image[]",await toPngFile(exOutImg,"example-adapted.png"));
+  }
+  fd.append("image[]",await toPngFile(srcImg,"source.png"));
+  fd.append("prompt",buildPrompt(name,W,H));
+  fd.append("size",nearestSize(W/H));
+  fd.append("input_fidelity","high");
+  fd.append("quality","high");
+  fd.append("n","1");
+  let res;
+  try{
+    res=await fetch("https://api.openai.com/v1/images/edits",{
+      method:"POST",headers:{Authorization:"Bearer "+key},body:fd});
+  }catch(e){
+    throw new Error("Browsers block direct OpenAI calls (CORS). Use a Google AI key, or run this app behind a proxy.");
+  }
+  if(!res.ok){
+    let m="engine error "+res.status;
+    try{const j=await res.json();if(j.error&&j.error.message)m=j.error.message;}catch(e){}
+    throw new Error(m);
+  }
+  const data=await res.json();
+  const b64=data.data&&data.data[0]&&data.data[0].b64_json;
+  if(!b64)throw new Error("no image returned");
+  return await new Promise((ok,no)=>{
+    const im=new Image();im.onload=()=>ok(im);im.onerror=no;
+    im.src="data:image/png;base64,"+b64;
+  });
+}
+
+/* ---------- render ---------- */
+function coverDraw(ctx,img,x,y,w,h){
+  const s=Math.max(w/img.naturalWidth,h/img.naturalHeight);
+  const dw=img.naturalWidth*s,dh=img.naturalHeight*s;
+  ctx.save();ctx.beginPath();ctx.rect(x,y,w,h);ctx.clip();
+  ctx.drawImage(img,x+(w-dw)/2,y+(h-dh)/2,dw,dh);ctx.restore();
+}
+function finish(img,W,H){
+  const c=document.createElement("canvas");c.width=W;c.height=H;
+  const ctx=c.getContext("2d");ctx.imageSmoothingQuality="high";
+  coverDraw(ctx,img,0,0,W,H);
+  if($("quality").value==="hybrid"&&(logoImg||partnerImg)){
+    const rule=BRAND_RULES.find(b=>b.w===W&&b.h===H);
+    const S=Math.min(W,H)/1080;
+    const gap=rule?rule.gap:Math.max(10,Math.round(50*S));
+    const mc=$("logoCorner").value;
+    if(logoImg){
+      const lw=rule?rule.logo:Math.max(24,Math.round(150*S));
+      const lh=lw*logoImg.naturalHeight/logoImg.naturalWidth;
+      ctx.drawImage(logoImg,mc.includes("left")?gap:W-gap-lw,mc.includes("top")?gap:H-gap-lh,lw,lh);
+    }
+    if(partnerImg){
+      const pw=Math.max(24,Math.round((parseInt($("partnerPx").value)||130)*S));
+      const ph=pw*partnerImg.naturalHeight/partnerImg.naturalWidth;
+      const pc=mc==="top-right"?"top-left":mc==="top-left"?"top-right":mc==="bottom-right"?"bottom-left":"bottom-right";
+      ctx.drawImage(partnerImg,pc.includes("left")?gap:W-gap-pw,pc.includes("top")?gap:H-gap-ph,pw,ph);
+    }
+  }
+  return c;
+}
+function addCard(c,name,w,h,note){
+  const type=$("ftype").value,ext=type==="image/png"?"png":"jpg";
+  const fname=name.toLowerCase().replace(/[^a-z0-9]+/g,"-")+"-"+w+"x"+h+"."+ext;
+  outputs.push({canvas:c,name:fname,type});
+  const card=document.createElement("div");card.className="rcard";
+  const wrap=document.createElement("div");wrap.className="rimg";
+  const pv=document.createElement("canvas");
+  const ps=Math.min(225/w,164/h,1);
+  pv.width=Math.round(w*ps);pv.height=Math.round(h*ps);
+  pv.getContext("2d").drawImage(c,0,0,pv.width,pv.height);
+  wrap.appendChild(pv);
+  const info=document.createElement("div");info.className="rinfo";
+  info.innerHTML="<div><b>"+name+"</b><span>"+w+" × "+h+(note?" · "+note:"")+"</span></div>";
+  const b=document.createElement("button");b.className="btn small";b.textContent="Save";
+  b.onclick=()=>c.toBlob(bl=>{const a=document.createElement("a");a.href=URL.createObjectURL(bl);a.download=fname;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),4000);},type,.93);
+  info.appendChild(b);
+  card.appendChild(wrap);card.appendChild(info);
+  $("results").appendChild(card);
+  $("outHead").style.display="flex";
+  $("actionbar").style.display="flex";
+  $("count").textContent=outputs.length+" version"+(outputs.length>1?"s":"")+" ready";
+}
+
+$("go").onclick=async()=>{
+  const st=$("genStatus");
+  if(!srcImg){alert("Upload the design you want to adapt (Step 2).");return;}
+  if(selected.size===0){alert("Select at least one target size (Step 4).");return;}
+  const needsEngine=[...selected].some(i=>{
+    const [,w,h]=PRESETS[i];
+    return Math.abs(Math.log((w/h)/(srcImg.naturalWidth/srcImg.naturalHeight)))>=0.06;
+  });
+  if(needsEngine&&!engineReady){await checkEngine();if(!engineReady){showKeyPanel();return;}}
+  $("go").disabled=true;outputs=[];$("results").innerHTML="";
+  const list=[...selected].map(i=>PRESETS[i]);
+  let n=0,fails=0;
+  for(const [name,w,h] of list){
+    n++;
+    st.className="";st.textContent="Adapting "+name+" ("+n+"/"+list.length+")… about 20s";
+    const srcR=srcImg.naturalWidth/srcImg.naturalHeight;
+    if(Math.abs(Math.log((w/h)/srcR))<0.06){
+      addCard(finish(srcImg,w,h),name,w,h,"same ratio");continue;
+    }
+    try{
+      const im=await callEngine(w,h,name);
+      addCard(finish(im,w,h),name,w,h,"adapted");
+    }catch(e){
+      fails++;st.className="err";st.textContent="⚠ "+name+": "+e.message;
+      await new Promise(r=>setTimeout(r,1200));
+    }
+  }
+  st.className=fails?"err":"ok";
+  st.textContent=fails?(list.length-fails)+" of "+list.length+" done — retry the failed ones.":"Done — "+list.length+" adapted. Regenerate any that need another attempt.";
+  $("go").disabled=false;
+};
+
+$("keyRetry").onclick=()=>checkEngine();
+$("keySkip").onclick=()=>hideKeyPanel();
+$("keyBadge").onclick=()=>{checkEngine();showKeyPanel();};
+checkEngine();
+
+$("zip").onclick=async()=>{
+  if(!outputs.length)return;
+  $("zip").disabled=true;$("zip").textContent="Packing…";
+  const zip=new JSZip();
+  for(const o of outputs){
+    const b=await new Promise(r=>o.canvas.toBlob(r,o.type,.93));
+    zip.file(o.name,b);
+  }
+  const out=await zip.generateAsync({type:"blob"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(out);a.download="adapted-designs.zip";a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+  $("zip").disabled=false;$("zip").textContent="Download all as ZIP";
+};
+</script>
+</body>
+</html>const OAI_SIZES=[["1024x1024",1],["1536x1024",1.5],["1024x1536",1/1.5]];
+function nearestSize(r){let b=OAI_SIZES[0];for(const s of OAI_SIZES){if(Math.abs(Math.log(s[1]/r))<Math.abs(Math.log(b[1]/r)))b=s;}return b[0];}
+const AR=[["1:1",1],["16:9",16/9],["9:16",9/16],["4:3",4/3],["3:4",3/4],["21:9",21/9],["3:2",1.5],["2:3",2/3],["4:5",.8],["5:4",1.25]];
+function nearestAR(r){let b=AR[0];for(const a of AR){if(Math.abs(Math.log(a[1]/r))<Math.abs(Math.log(b[1]/r)))b=a;}return b[0];}
+
+function buildPrompt(name,W,H){
+  const rule=BRAND_RULES.find(b=>b.w===W&&b.h===H);
+  const align=$("compAlign").value;
+  const notes=$("layoutNotes").value.trim();
+  let p="";
+  if(exSrcImg&&exOutImg){
+    p+="The first image is an original design. The second image shows how a professional designer adapted that same design into a wider format. The third image is a NEW design. ";
+    p+="Study carefully how the designer rearranged things between the first and second images: the column split, where the headline, supporting bullet points, date, button, cutout figure and logos were placed, and how the type was rescaled. ";
+    p+="Now adapt the THIRD image into a "+W+"x"+H+" layout using that same adaptation approach. ";
+  }else{
+    p+="Adapt this finished marketing design into a "+W+"x"+H+" pixel layout for "+name+". ";
+  }
+  p+="This is a LAYOUT ADAPTATION, not a crop or a stretch: rebuild the composition for the new canvas shape. ";
+  p+="Keep every element from the source: all logos, the headline, supporting bullet points, date, call-to-action button, and any person or product cutout. Do not remove elements and do not invent new ones. ";
+  p+="Reproduce all text EXACTLY as written in the source, spelled correctly, re-flowed onto fewer and wider lines, and rescaled proportionally so it reads comfortably at this size. ";
+  p+="Leave generous white space so the layout breathes; nothing cramped, nothing touching the edges. ";
+  p+="Keep the same fonts, colours, background pattern and visual style, and extend the background naturally to fill the canvas. Keep logos crisp, undistorted and in their original colours. ";
+  p+="The composition should be "+align+"-weighted. ";
+  if(rule)p+="Logo rule: the brand logo should be about "+rule.logo+"px wide with a "+rule.gap+"px gap from its corner edges at this canvas size. ";
+  if(notes)p+="Target layout structure: "+notes+" ";
+  return p;
+}
+
+async function imgToB64(img){
+  const f=await toPngFile(img,"i.png");
+  return await new Promise(ok=>{const rd=new FileReader();rd.onload=()=>ok(rd.result.split(",")[1]);rd.readAsDataURL(f);});
+}
+
+async function callEngine(W,H,name){
+  const images=[];
+  if(exSrcImg&&exOutImg){images.push(await imgToB64(exSrcImg));images.push(await imgToB64(exOutImg));}
+  images.push(await imgToB64(srcImg));
+  let res;
+  try{
+    res=await fetch(ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({prompt:buildPrompt(name,W,H),images,size:nearestSize(W/H),aspectRatio:nearestAR(W/H)})});
+  }catch(e){throw new Error("Cannot reach the engine server — is the app deployed?");}
+  const data=await res.json().catch(()=>({}));
+  if(!res.ok)throw new Error(data.error||("server error "+res.status));
+  if(!data.image)throw new Error("no image returned");
+  return await new Promise((ok,no)=>{const im=new Image();im.onload=()=>ok(im);im.onerror=no;
+    im.src="data:image/png;base64,"+data.image;});
+}
+
+/* ---------- render ---------- */
+function coverDraw(ctx,img,x,y,w,h){
+  const s=Math.max(w/img.naturalWidth,h/img.naturalHeight);
+  const dw=img.naturalWidth*s,dh=img.naturalHeight*s;
+  ctx.save();ctx.beginPath();ctx.rect(x,y,w,h);ctx.clip();
+  ctx.drawImage(img,x+(w-dw)/2,y+(h-dh)/2,dw,dh);ctx.restore();
+}
+function finish(img,W,H){
+  const c=document.createElement("canvas");c.width=W;c.height=H;
+  const ctx=c.getContext("2d");ctx.imageSmoothingQuality="high";
+  coverDraw(ctx,img,0,0,W,H);
+  if($("quality").value==="hybrid"&&(logoImg||partnerImg)){
+    const rule=BRAND_RULES.find(b=>b.w===W&&b.h===H);
+    const S=Math.min(W,H)/1080;
+    const gap=rule?rule.gap:Math.max(10,Math.round(50*S));
+    const mc=$("logoCorner").value;
+    if(logoImg){
+      const lw=rule?rule.logo:Math.max(24,Math.round(150*S));
+      const lh=lw*logoImg.naturalHeight/logoImg.naturalWidth;
+      ctx.drawImage(logoImg,mc.includes("left")?gap:W-gap-lw,mc.includes("top")?gap:H-gap-lh,lw,lh);
+    }
+    if(partnerImg){
+      const pw=Math.max(24,Math.round((parseInt($("partnerPx").value)||130)*S));
+      const ph=pw*partnerImg.naturalHeight/partnerImg.naturalWidth;
+      const pc=mc==="top-right"?"top-left":mc==="top-left"?"top-right":mc==="bottom-right"?"bottom-left":"bottom-right";
+      ctx.drawImage(partnerImg,pc.includes("left")?gap:W-gap-pw,pc.includes("top")?gap:H-gap-ph,pw,ph);
+    }
+  }
+  return c;
+}
+function addCard(c,name,w,h,note){
+  const type=$("ftype").value,ext=type==="image/png"?"png":"jpg";
+  const fname=name.toLowerCase().replace(/[^a-z0-9]+/g,"-")+"-"+w+"x"+h+"."+ext;
+  outputs.push({canvas:c,name:fname,type});
+  const card=document.createElement("div");card.className="rcard";
+  const wrap=document.createElement("div");wrap.className="rimg";
+  const pv=document.createElement("canvas");
+  const ps=Math.min(225/w,164/h,1);
+  pv.width=Math.round(w*ps);pv.height=Math.round(h*ps);
+  pv.getContext("2d").drawImage(c,0,0,pv.width,pv.height);
+  wrap.appendChild(pv);
+  const info=document.createElement("div");info.className="rinfo";
+  info.innerHTML="<div><b>"+name+"</b><span>"+w+" × "+h+(note?" · "+note:"")+"</span></div>";
+  const b=document.createElement("button");b.className="btn small";b.textContent="Save";
+  b.onclick=()=>c.toBlob(bl=>{const a=document.createElement("a");a.href=URL.createObjectURL(bl);a.download=fname;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),4000);},type,.93);
+  info.appendChild(b);
+  card.appendChild(wrap);card.appendChild(info);
+  $("results").appendChild(card);
+  $("outHead").style.display="flex";
+  $("actionbar").style.display="flex";
+  $("count").textContent=outputs.length+" version"+(outputs.length>1?"s":"")+" ready";
+}
+
+$("go").onclick=async()=>{
+  const st=$("genStatus");
+  if(!srcImg){alert("Upload the design you want to adapt (Step 2).");return;}
+  if(selected.size===0){alert("Select at least one target size (Step 4).");return;}
+  const needsEngine=[...selected].some(i=>{
+    const [,w,h]=PRESETS[i];
+    return Math.abs(Math.log((w/h)/(srcImg.naturalWidth/srcImg.naturalHeight)))>=0.06;
+  });
+  if(needsEngine&&!engineReady){await checkEngine();if(!engineReady){showKeyPanel();return;}}
+  $("go").disabled=true;outputs=[];$("results").innerHTML="";
+  const list=[...selected].map(i=>PRESETS[i]);
+  let n=0,fails=0;
+  for(const [name,w,h] of list){
+    n++;
+    st.className="";st.textContent="Adapting "+name+" ("+n+"/"+list.length+")… about 20s";
+    const srcR=srcImg.naturalWidth/srcImg.naturalHeight;
+    if(Math.abs(Math.log((w/h)/srcR))<0.06){
+      addCard(finish(srcImg,w,h),name,w,h,"same ratio");continue;
+    }
+    try{
+      const im=await callEngine(w,h,name);
+      addCard(finish(im,w,h),name,w,h,"adapted");
+    }catch(e){
+      fails++;st.className="err";st.textContent="⚠ "+name+": "+e.message;
+      await new Promise(r=>setTimeout(r,1200));
+    }
+  }
+  st.className=fails?"err":"ok";
+  st.textContent=fails?(list.length-fails)+" of "+list.length+" done — retry the failed ones.":"Done — "+list.length+" adapted. Regenerate any that need another attempt.";
+  $("go").disabled=false;
+};
+
+$("keyRetry").onclick=()=>checkEngine();
+$("keySkip").onclick=()=>hideKeyPanel();
+$("keyBadge").onclick=()=>{checkEngine();showKeyPanel();};
+checkEngine();
+
+$("zip").onclick=async()=>{
+  if(!outputs.length)return;
+  $("zip").disabled=true;$("zip").textContent="Packing…";
+  const zip=new JSZip();
+  for(const o of outputs){
+    const b=await new Promise(r=>o.canvas.toBlob(r,o.type,.93));
+    zip.file(o.name,b);
+  }
+  const out=await zip.generateAsync({type:"blob"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(out);a.download="adapted-designs.zip";a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+  $("zip").disabled=false;$("zip").textContent="Download all as ZIP";
+};
+</script>
+</body>
+</html>
